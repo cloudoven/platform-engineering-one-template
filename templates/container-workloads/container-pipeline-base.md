@@ -1,10 +1,4 @@
-# platform-engineering-one-template
-Templates for Azure Pipeline that are centrally managed and governed 
-
-# How to use this template?
-
-Refer the template file as resource and **extend** the template like below
-
+How to do Container app deployment in our company
 ```
 trigger:
   - main
@@ -81,4 +75,3 @@ extends:
         containerAppName: $(containerAppName)
         revisionSuffix: $(containerAppRevisionSuffix)
 ```
-

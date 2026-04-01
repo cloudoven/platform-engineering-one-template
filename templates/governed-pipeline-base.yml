@@ -1,0 +1,81 @@
+parameters:
+  - name: productName
+    type: string
+
+  # CI injection
+  - name: buildStepsTemplate
+    type: string
+  - name: buildStepsParameters
+    type: object
+    default: {}
+
+  # CD injection (single-stage deployment with jobs - for Rolling/BlueGreen)
+  - name: deploymentJobTemplate
+    type: string
+    default: ""
+  - name: deploymentJobParameters
+    type: object
+    default: {}
+
+  # CD injection (multi-stage deployment - for Canary)
+  - name: deploymentStagesTemplate
+    type: string
+    default: ""
+  - name: deploymentStagesParameters
+    type: object
+    default: {}
+
+  - name: deployEnvironmentName
+    type: string
+
+
+stages:
+  # --------------------
+  # CI STAGE
+  # --------------------
+  - stage: CI
+    displayName: "CI – Build & Test (${{ parameters.productName }})"
+    jobs:
+      - job: Build
+        displayName: "Build job – ${{ parameters.productName }}"
+        steps:
+          - checkout: self
+            displayName: "Checkout source"
+          - script: echo "${{ parameters.productName }} build start"
+            displayName: "🔧 ${{ parameters.productName }} – Start build"
+
+          - template: ${{ parameters.buildStepsTemplate }}
+            parameters: ${{ parameters.buildStepsParameters }}
+
+          - script: echo "${{ parameters.productName }} build end"
+            displayName: "✅ ${{ parameters.productName }} – Build completed"
+
+  # --------------------
+  # CD STAGE (single-stage with jobs - for Rolling/BlueGreen)
+  # --------------------
+  - ${{ if ne(parameters.deploymentJobTemplate, '') }}:
+    - stage: CD
+      displayName: "CD – Deploy (${{ parameters.productName }})"
+      dependsOn: CI
+      condition: succeeded()
+
+      jobs:
+        - template: ${{ parameters.deploymentJobTemplate }}
+          parameters:
+            productName: ${{ parameters.productName }}
+            deployEnvironmentName: ${{ parameters.deployEnvironmentName }}
+            ${{ each pair in parameters.deploymentJobParameters }}:
+              ${{ pair.key }}: ${{ pair.value }}
+
+  # --------------------
+  # CD STAGES (multi-stage deployment - for Canary)
+  # --------------------
+  - ${{ if ne(parameters.deploymentStagesTemplate, '') }}:
+    - template: ${{ parameters.deploymentStagesTemplate }}
+      parameters:
+        productName: ${{ parameters.productName }}
+        deployEnvironmentName: ${{ parameters.deployEnvironmentName }}
+        dependsOn: CI
+        ${{ each pair in parameters.deploymentStagesParameters }}:
+          ${{ pair.key }}: ${{ pair.value }}
+
